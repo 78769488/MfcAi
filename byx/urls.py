@@ -4,13 +4,13 @@
 # Date: 2017/6/8
 
 from django.conf.urls import url, include
-from rest_framework import routers
+# from rest_framework import routers
 from byx import views
 
 
-router = routers.DefaultRouter()
-router.register(r'users', views.UserViewSet)
-router.register(r'groups', views.GroupViewSet)
+# router = routers.DefaultRouter()
+# router.register(r'users', views.UserViewSet)
+# router.register(r'groups', views.GroupViewSet)
 
 # Wite up our API using automatic URL routing.
 # Additionally, we include login URLs for the browseable API.

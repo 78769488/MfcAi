@@ -1,27 +1,28 @@
 from django.shortcuts import render, HttpResponse
 from django.db import connection
 # Create your views here.
-from django.contrib.auth.models import User, Group
-from rest_framework import viewsets
-from byx.serializers import UserSerializers, GroupSerializer
+# from django.contrib.auth.models import User, Group
+# from rest_framework import viewsets
+# from byx.serializers import UserSerializers, GroupSerializer
+import re
 import json
 from byx import models
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    """
-    允许查看和编辑user的API endpoint
-    """
-    queryset = User.objects.all()
-    serializer_class = UserSerializers
-
-
-class GroupViewSet(viewsets.ModelViewSet):
-    """
-    允许查看和编辑group的API endpoint
-    """
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
+# class UserViewSet(viewsets.ModelViewSet):
+#     """
+#     允许查看和编辑user的API endpoint
+#     """
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializers
+#
+#
+# class GroupViewSet(viewsets.ModelViewSet):
+#     """
+#     允许查看和编辑group的API endpoint
+#     """
+#     queryset = Group.objects.all()
+#     serializer_class = GroupSerializer
 
 
 def index(request):
@@ -32,7 +33,7 @@ def index(request):
 
 def query(request):
     print(request.method, request.GET.get('para'), )
-    para = request.GET.get("para")
+    para = request.GET.get("para")  # 获取用户输入的内容
     # 不需要查库的操作
     if para == "index":
         ret = {"messages":
@@ -72,15 +73,22 @@ def query(request):
             if len(para) > 2 and para.endswith("主力"):  # 查询主力合约
                 ret = {"messages":
                            [{"t": "0",
-                             "msg": query_futures(para)}
+                             "msg": query_futures_name(para)}
                             ]
                        }
             elif len(para) > 2 and para.endswith("指数"):  # 查询主力合约
                 ret = {"messages":
                            [{"t": "0",
-                             "msg": query_futures(para)}
+                             "msg": query_futures_name(para)}
                             ]
                        }
+            elif re.match(r'\w+\d+', para):  # 匹配字母和数字并且是以数字结尾的字符串, 此次为期货信息
+                ret = {"messages":
+                           [{"t": "0",
+                             "msg": query_futures_code(para)}
+                            ]
+                       }
+
             else:
                 ret = {"messages":
                            [{"msg": "您的关键词不太详细哦，再告诉小美一次吧!"}
@@ -90,17 +98,49 @@ def query(request):
 
 
 def query_stock(para):
+    """
+    股票查询
+    :param para: 股票代码或者股票名称
+    :return: 查询结果
+    """
     data = models.Data.objects.filter(code=para).first()
-    ret = "代码:{code}<br>名称:{name}<br>涨幅:{gains}<br>收盘:{closing}<br>成交量:{turnover}<br>总金额:{totalMoney}<br>" \
-          "{today}压力:{pressure}<br>{today}支撑:{support}<br>{tomorrow}压力:{tPressure}<br>{tomorrow}支撑:{tSupport}<br>"
-    dic = dict(code=data.code, name=data.name, gains=data.gains, closing=data.closing, turnover=data.turnover,
-               totalMoney=data.totalMoney, pressure=data.pressure, support=data.support, tPressure=data.tPressure,
-               tSupport=data.tSupport, today=date2str(data.dataDate), tomorrow=date2str(data.nextDate))
-    return ret.format(**dic)
+    if data:
+        ret = "代码:{code}<br>名称:{name}<br>涨幅:{gains}<br>收盘:{closing}<br>成交量:{turnover}<br>总金额:{totalMoney}<br>" \
+              "{today}压力:{pressure}<br>{today}支撑:{support}<br>{tomorrow}压力:{tPressure}<br>{tomorrow}支撑:{tSupport}<br>"
+        dic = dict(code=data.code, name=data.name, gains=data.gains, closing=data.closing, turnover=data.turnover,
+                   totalMoney=data.totalMoney, pressure=data.pressure, support=data.support, tPressure=data.tPressure,
+                   tSupport=data.tSupport, today=date2str(data.dataDate), tomorrow=date2str(data.nextDate))
+        return ret.format(**dic)
+    else:
+        return "您的关键词不太详细哦，再告诉小美一次吧!"
 
 
-def query_futures(para):
+def query_futures_name(para):
+    """
+    期货主力合约及指数(名称)查询
+    :param para: 
+    :return: 
+    """
     data = models.Data.objects.filter(name__iendswith=para).first()
+    print(connection.queries)
+    if data:
+        ret = "代码:{code}<br>名称:{name}<br>涨幅:{gains}<br>收盘:{closing}<br>成交量:{turnover}<br>总金额:{totalMoney}<br>" \
+              "{today}压力:{pressure}<br>{today}支撑:{support}<br>{tomorrow}压力:{tPressure}<br>{tomorrow}支撑:{tSupport}<br>"
+        dic = dict(code=data.code, name=data.name, gains=data.gains, closing=data.closing, turnover=data.turnover,
+                   totalMoney=data.totalMoney, pressure=data.pressure, support=data.support, tPressure=data.tPressure,
+                   tSupport=data.tSupport, today=date2str(data.dataDate), tomorrow=date2str(data.nextDate))
+        return ret.format(**dic)
+    else:
+        return "您的关键词不太详细哦，再告诉小美一次吧!"
+
+
+def query_futures_code(para):
+    """
+    期货主力合约及指数(代码)查询
+    :param para: 
+    :return: 
+    """
+    data = models.Data.objects.filter(code__icontains=para).first()
     print(connection.queries)
     if data:
         ret = "代码:{code}<br>名称:{name}<br>涨幅:{gains}<br>收盘:{closing}<br>成交量:{turnover}<br>总金额:{totalMoney}<br>" \
